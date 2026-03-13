@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Staged orders from the raw orders table"
+    columns:
+      - name: order_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null

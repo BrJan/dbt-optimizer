@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbt-optimizer"
+version = "0.1.0"
+description = "AI-powered SQL optimization advisor for dbt projects"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "anthropic>=0.40.0",
+    "click>=8.0",
+    "rich>=13.0",
+    "pyyaml>=6.0",
+    "sqlglot>=25.0",
+    "pathspec>=0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff",
+]
+
+[project.scripts]
+dbt-optimizer = "dbt_optimizer.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dbt_optimizer*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/ -v 2>&1)",
+      "Bash(python3 -m pytest tests/ -v 2>&1)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//opt/homebrew/**)",
+      "Bash(/opt/homebrew/bin/pytest tests/ -v 2>&1)",
+      "Bash(dbt-optimizer analyze:*)",
+      "Bash(dbt-optimizer list-rules:*)"
+    ]
+  }
+}

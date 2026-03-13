@@ -1,0 +1,2 @@
+[console_scripts]
+dbt-optimizer = dbt_optimizer.cli:cli
