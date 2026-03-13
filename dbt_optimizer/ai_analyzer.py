@@ -48,9 +48,24 @@ _SYSTEM_PROMPT = textwrap.dedent("""\
 
 
 def _build_user_prompt(model: DbtModel) -> str:
-    sql_snippet = model.sql[:_MAX_SQL_CHARS]
-    truncated = len(model.sql) > _MAX_SQL_CHARS
-    trunc_note = f"\n... [truncated at {_MAX_SQL_CHARS} chars of {len(model.sql)} total]" if truncated else ""
+    sql_source = model.effective_sql
+    sql_snippet = sql_source[:_MAX_SQL_CHARS]
+    truncated = len(sql_source) > _MAX_SQL_CHARS
+    trunc_note = (
+        f"\n... [truncated at {_MAX_SQL_CHARS} chars of {len(sql_source)} total]"
+        if truncated else ""
+    )
+    sql_label = "Compiled SQL (Jinja resolved)" if model.compiled_sql else "SQL (raw, Jinja not resolved)"
+
+    lineage_section = ""
+    if model.upstream_models or model.downstream_models:
+        up = ", ".join(model.upstream_models) if model.upstream_models else "none"
+        dn = ", ".join(model.downstream_models) if model.downstream_models else "none"
+        lineage_section = textwrap.dedent(f"""
+        Lineage:
+          Upstream models  : {up}
+          Downstream models: {dn}
+        """)
 
     return textwrap.dedent(f"""\
         Analyze this dbt model and return optimization suggestions as a JSON array.
@@ -59,9 +74,8 @@ def _build_user_prompt(model: DbtModel) -> str:
         Materialization: {model.materialization}
         Line count: {model.line_count}
         Has tests: {model.has_tests}
-        Has description: {model.has_description}
-
-        SQL:
+        Has description: {model.has_description}{lineage_section}
+        {sql_label}:
         ```sql
         {sql_snippet}{trunc_note}
         ```

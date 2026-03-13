@@ -8,7 +8,14 @@
       "Read(//opt/homebrew/**)",
       "Bash(/opt/homebrew/bin/pytest tests/ -v 2>&1)",
       "Bash(dbt-optimizer analyze:*)",
-      "Bash(dbt-optimizer list-rules:*)"
+      "Bash(dbt-optimizer list-rules:*)",
+      "Bash(python -c \"from dbt_optimizer.rules import ALL_RULES, ALL_SQL_RULES, LINEAGE_RULES; print\\(f'SQL rules: {len\\(ALL_SQL_RULES\\)}, Lineage rules: {len\\(LINEAGE_RULES\\)}, Total: {len\\(ALL_RULES\\)}'\\)\")",
+      "Bash(python3 -c \"from dbt_optimizer.rules import ALL_RULES, ALL_SQL_RULES, LINEAGE_RULES; print\\(f'SQL rules: {len\\(ALL_SQL_RULES\\)}, Lineage rules: {len\\(LINEAGE_RULES\\)}, Total: {len\\(ALL_RULES\\)}'\\)\")",
+      "Bash(python3 -c \"\nfrom dbt_optimizer.models import DbtModel\nfrom pathlib import Path\nm = DbtModel\\(name='test', path=Path\\('models/test.sql'\\), sql='SELECT 1'\\)\nprint\\('compiled_sql:', m.compiled_sql\\)\nprint\\('effective_sql:', m.effective_sql\\)\nprint\\('upstream:', m.upstream_models\\)\nprint\\('downstream:', m.downstream_models\\)\nm.compiled_sql = 'SELECT id FROM orders'\nprint\\('effective_sql after MCP:', m.effective_sql\\)\n\")",
+      "Bash(python3 -c \"from dbt_optimizer.cli import cli; print\\('CLI imports OK'\\)\")",
+      "Bash(pip3 install:*)",
+      "Bash(python3 -m pytest tests/ -q 2>&1 | tail -20)",
+      "Bash(python3 -m dbt_optimizer.cli list-rules 2>&1)"
     ]
   }
 }

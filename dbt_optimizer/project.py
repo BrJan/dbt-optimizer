@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
 from .models import DbtModel
+
+if TYPE_CHECKING:
+    from .mcp_client import DbtMcpClient
+
+logger = logging.getLogger(__name__)
 
 
 class DbtProjectError(Exception):
@@ -138,5 +144,47 @@ class DbtProjectParser:
                     has_description=has_description,
                 )
             )
+
+        return models
+
+    def enrich_models_from_mcp(
+        self,
+        models: list[DbtModel],
+        mcp_client: "DbtMcpClient",
+        fetch_lineage: bool = True,
+        progress_callback=None,
+    ) -> list[DbtModel]:
+        """Enrich *models* in-place with compiled SQL and lineage from MCP.
+
+        Returns the same list (mutated).  Any individual failure is silently
+        skipped so the rest of the analysis can continue.
+        """
+        model_names = [m.name for m in models]
+
+        # --- Compiled SQL (bulk call) ---
+        compiled_map: dict[str, str] = {}
+        try:
+            if progress_callback:
+                progress_callback("Compiling SQL via dbt MCP…")
+            compiled_map = mcp_client.get_compiled_sql_bulk(model_names)
+            logger.debug("Compiled %d models via MCP", len(compiled_map))
+        except Exception as exc:
+            logger.warning("Bulk compile via MCP failed: %s", exc)
+
+        for model in models:
+            if model.name in compiled_map:
+                model.compiled_sql = compiled_map[model.name]
+
+        # --- Lineage (one call pair per model) ---
+        if fetch_lineage:
+            for i, model in enumerate(models):
+                if progress_callback:
+                    progress_callback(f"Fetching lineage {i + 1}/{len(models)}: {model.name}")
+                try:
+                    lineage = mcp_client.get_model_lineage(model.name)
+                    model.upstream_models = lineage["upstream"]
+                    model.downstream_models = lineage["downstream"]
+                except Exception as exc:
+                    logger.debug("Lineage fetch for %s failed: %s", model.name, exc)
 
         return models

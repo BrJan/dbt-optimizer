@@ -9,3 +9,6 @@ pathspec>=0.12
 pytest>=7.0
 pytest-cov
 ruff
+
+[mcp]
+mcp>=1.0.0

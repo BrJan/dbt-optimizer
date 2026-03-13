@@ -30,6 +30,15 @@ class DbtModel:
     columns: list[str] = field(default_factory=list)
     has_tests: bool = False
     has_description: bool = False
+    # Enriched by dbt MCP (optional)
+    compiled_sql: str | None = None          # Jinja-resolved SQL
+    upstream_models: list[str] = field(default_factory=list)
+    downstream_models: list[str] = field(default_factory=list)
+
+    @property
+    def effective_sql(self) -> str:
+        """Return compiled SQL when available, falling back to raw SQL."""
+        return self.compiled_sql if self.compiled_sql else self.sql
 
     @property
     def line_count(self) -> int:

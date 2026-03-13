@@ -15,6 +15,11 @@ from .project import DbtProjectParser, DbtProjectError
 from .rules import ALL_RULES
 from .reporter import ConsoleReporter, JsonReporter
 
+_MCP_HELP = (
+    "Connect to the dbt MCP server for compiled SQL and lineage data. "
+    "Requires the dbt MCP server to be installed (e.g. pip install dbt-mcp)."
+)
+
 console = Console()
 
 
@@ -59,6 +64,14 @@ def cli():
 @click.option("--fail-on-severity", default=None, metavar="LEVEL",
               type=click.Choice(["high", "medium", "low"], case_sensitive=False),
               help="Exit with code 1 if suggestions at this level or higher are found.")
+@click.option("--mcp/--no-mcp", default=False, show_default=True,
+              help=_MCP_HELP)
+@click.option("--mcp-command", default="dbt-mcp", show_default=True, metavar="CMD",
+              help="Command to launch the dbt MCP server.")
+@click.option("--mcp-args", default=None, metavar="ARGS",
+              help="Space-separated extra arguments passed to the MCP server command.")
+@click.option("--mcp-no-lineage", is_flag=True, default=False,
+              help="Skip lineage fetching when using MCP (faster for large projects).")
 def analyze(
     project_path,
     ai,
@@ -70,6 +83,10 @@ def analyze(
     select,
     skip_rules,
     fail_on_severity,
+    mcp,
+    mcp_command,
+    mcp_args,
+    mcp_no_lineage,
 ):
     """Analyze a dbt project and surface SQL optimization suggestions.
 
@@ -131,7 +148,63 @@ def analyze(
             f"models=[cyan]{len(models)}[/cyan]  rules=[cyan]{len(active_rules)}[/cyan]"
         )
 
-    # 4. Rule-based analysis
+    # 4. MCP enrichment (optional)
+    mcp_active = False
+    if mcp:
+        from .mcp_client import DbtMcpClient, McpNotAvailableError
+
+        extra_args = mcp_args.split() if mcp_args else []
+        try:
+            fetch_lineage = not mcp_no_lineage
+            label = "compiled SQL + lineage" if fetch_lineage else "compiled SQL"
+            total_steps = len(models) * (3 if fetch_lineage else 1)
+
+            with console.status("[bold blue]Connecting to dbt MCP server...[/bold blue]"):
+                mcp_client_obj = DbtMcpClient(command=mcp_command, args=extra_args)
+
+            with mcp_client_obj as mcp_client:
+                mcp_active = True
+
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn(
+                        f"[bold blue]MCP enrichment ({label})[/bold blue] {{task.description}}"
+                    ),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    console=console,
+                    transient=True,
+                ) as progress:
+                    task = progress.add_task("", total=total_steps)
+                    step = [0]
+
+                    def mcp_cb(msg: str) -> None:
+                        step[0] += 1
+                        progress.update(task, completed=step[0], description=f"[dim]{msg}[/dim]")
+
+                    parser.enrich_models_from_mcp(
+                        models,
+                        mcp_client,
+                        fetch_lineage=fetch_lineage,
+                        progress_callback=mcp_cb,
+                    )
+                    progress.update(task, completed=total_steps)
+
+            compiled_count = sum(1 for m in models if m.compiled_sql)
+            if output_format != "json":
+                console.print(
+                    f"[dim]MCP: compiled SQL for {compiled_count}/{len(models)} models"
+                    + (", lineage fetched" if fetch_lineage else "")
+                    + "[/dim]"
+                )
+
+        except McpNotAvailableError as e:
+            console.print(f"[yellow]MCP skipped:[/yellow] {e}")
+        except Exception as e:
+            console.print(f"[yellow]MCP enrichment failed:[/yellow] {e}")
+            console.print("[dim]Falling back to file-based analysis.[/dim]")
+
+    # 5. Rule-based analysis
     with console.status("[bold blue]Running rule-based analysis...[/bold blue]"):
         suggestions = _run_rules(models, active_rules)
 
@@ -142,7 +215,7 @@ def analyze(
         suggestions=suggestions,
     )
 
-    # 5. AI analysis
+    # 6. AI analysis
     ai_analyzed = 0
     if ai:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -225,21 +298,26 @@ def analyze(
 @cli.command("list-rules")
 def list_rules():
     """List all available rule-based checks."""
-    from rich.table import Table
     from rich import box
+    from rich.table import Table
+
+    from .rules import ALL_SQL_RULES, LINEAGE_RULES
 
     table = Table(title="Available Rules", box=box.SIMPLE_HEAVY)
     table.add_column("Rule ID", style="bold cyan")
     table.add_column("Title")
-    table.add_column("Source", style="dim")
+    table.add_column("Requires", style="dim")
 
-    for rule in ALL_RULES:
-        table.add_row(rule.rule_id, rule.title, "rule")
-
-    table.add_row("AI", "AI-powered deep analysis (Claude)", "ai")
+    for rule in ALL_SQL_RULES:
+        table.add_row(rule.rule_id, rule.title, "—")
+    for rule in LINEAGE_RULES:
+        table.add_row(rule.rule_id, rule.title, "MCP (lineage)")
+    table.add_row("AI", "AI-powered deep analysis (Claude)", "ANTHROPIC_API_KEY")
 
     console.print(table)
     console.print(
-        f"\n[dim]{len(ALL_RULES)} static rules + 1 AI analyzer. "
+        f"\n[dim]{len(ALL_SQL_RULES)} static rules  |  "
+        f"{len(LINEAGE_RULES)} lineage rules (require --mcp)  |  "
+        "1 AI analyzer\n"
         "Use --skip-rules RULE_ID,... to disable specific rules.[/dim]"
     )

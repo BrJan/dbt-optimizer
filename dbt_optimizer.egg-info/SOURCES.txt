@@ -3,6 +3,7 @@ pyproject.toml
 dbt_optimizer/__init__.py
 dbt_optimizer/ai_analyzer.py
 dbt_optimizer/cli.py
+dbt_optimizer/mcp_client.py
 dbt_optimizer/models.py
 dbt_optimizer/project.py
 dbt_optimizer/reporter.py
@@ -14,5 +15,6 @@ dbt_optimizer.egg-info/requires.txt
 dbt_optimizer.egg-info/top_level.txt
 dbt_optimizer/rules/__init__.py
 dbt_optimizer/rules/base.py
+dbt_optimizer/rules/lineage_rules.py
 dbt_optimizer/rules/sql_rules.py
 tests/test_rules.py

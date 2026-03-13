@@ -24,6 +24,9 @@ dev = [
     "pytest-cov",
     "ruff",
 ]
+mcp = [
+    "mcp>=1.0.0",
+]
 
 [project.scripts]
 dbt-optimizer = "dbt_optimizer.cli:cli"

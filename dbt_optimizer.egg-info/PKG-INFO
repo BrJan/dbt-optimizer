@@ -15,6 +15,8 @@ Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: pytest-cov; extra == "dev"
 Requires-Dist: ruff; extra == "dev"
+Provides-Extra: mcp
+Requires-Dist: mcp>=1.0.0; extra == "mcp"
 
 # dbt-optimizer
 
@@ -220,30 +222,6 @@ dbt_optimizer/
 2. Rule-based analysis — each rule runs independently against the SQL text; failures never block other rules
 3. AI analysis — models sent to Claude in priority order (most issues first), results parsed from JSON response
 4. Filtering and output — results filtered by `--min-severity`, rendered to terminal or JSON
-
-## Productionization Roadmap
-
-### Short-term (0-3 months)
-
-- [ ] **dbt Cloud / Core integration** — run `dbt compile` first and analyze compiled SQL for fully-resolved queries (eliminates Jinja false positives)
-- [ ] **Warehouse-specific rule packs** — Snowflake (clustering keys, search optimization), BigQuery (partition expiration, slot usage), Databricks (Z-ordering, liquid clustering), Redshift (sort/dist keys)
-- [ ] **Baseline diffing** — `dbt-optimizer diff HEAD~1` to show only net-new issues in a PR
-- [ ] **VS Code extension** — inline hints as you write SQL
-
-### Medium-term (3-6 months)
-
-- [ ] **Query execution metadata** — ingest `dbt artifacts` (manifest.json, run_results.json) to incorporate actual runtime and bytes-scanned into severity scoring
-- [ ] **Lineage-aware analysis** — flag models that are referenced by many downstream models for extra scrutiny
-- [ ] **Auto-fix suggestions** — for mechanical fixes (SELECT *, UNION → UNION ALL), generate a corrected SQL diff
-- [ ] **Slack / PR comment integration** — post summaries as GitHub PR comments or Slack messages on dbt Cloud job completion
-- [ ] **Custom rule SDK** — allow teams to define project-specific rules as Python classes
-
-### Long-term (6+ months)
-
-- [ ] **Historical trending** — track suggestion counts over time in a SQLite/Postgres store, surface regression alerts
-- [ ] **Team benchmarking** — anonymized aggregate metrics comparing project health across teams
-- [ ] **SaaS deployment** — webhook receiver for dbt Cloud job events, async analysis queue, web dashboard
-- [ ] **Model-aware AI context** — pass lineage graph context to Claude so AI suggestions account for upstream/downstream models
 
 ## Contributing
 
